@@ -79,7 +79,6 @@ the difference appears exactly where sensing is weak.
 | `tools/` | leg odometry, prior-map localizer, loop closure, **map evaluation** (`elevmap.py`), navigation benchmark, plots, ROS 2 bag export / live publishing |
 | `fmcw_lio_standalone/` | ROS-free build of FMCW-LIO; our additions (leg velocity update, Doppler slip gate) as **patches** |
 | `fast_lio_standalone/` | ROS-free build of FAST-LIO2 (GPL-2.0, see its LICENSE) |
-| `report/` | Technical report, English + Turkish (74+ pages, beginner-friendly), and a Turkish-only version |
 | `figures/` | Key figures and the demo video |
 
 ## What was ready-made, what was written
