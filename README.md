@@ -12,8 +12,7 @@ samples and the selected trajectory. First the previous reactive method gets tra
 work completes the mission. Full video: [`figures/map_nav_demo.mp4`](figures/map_nav_demo.mp4).*
 
 > **Simulation study.** MuJoCo physics, a pretrained Unitree walking policy (not trained here), simulated sensors.
-> Absolute numbers are optimistic; the rankings and failure mechanisms are the point. Code was developed with an AI
-> coding assistant (Claude); the design, experiments and analysis were directed by the author.
+> Absolute numbers are optimistic; the rankings and failure mechanisms are the point. 
 
 ---
 
