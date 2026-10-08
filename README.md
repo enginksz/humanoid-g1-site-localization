@@ -105,6 +105,14 @@ python3 tools/elevmap.py --scene dynamic                            # maps vs. g
 python3 tools/nav_bench.py --scene nav_clutter --seeds 0 1 2 3 4    # navigation benchmark
 python3 -m sim.closed_loop --scene outdoor --est 4d_leg --nav mppi --nav-dyn doppler+raycast --out results/x
 ```
+## Future Work
+Potensial extensions inclde:
+- Visual feature tracking /  visual odometry
+- Visual-inertial constrains
+- Tightly coupled LİIDAR-visual-kinematic state estimation
+- Cam-LIDAR calibration and sync
+- etc
+
 
 ## Licenses
 
