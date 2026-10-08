@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Humanoid Localization &amp; Mapping on Construction Sites</title>
+<meta name="description" content="A Unitree G1 humanoid localizes, maps and navigates simulated construction and energy sites using a Doppler LiDAR, IMU and leg kinematics.">
+<style>
+  :root{--bg:#fbfaf7;--ink:#1d1f23;--muted:#5f6670;--line:#e3e0d8;--accent:#1a8f66;--warn:#c0392b;--card:#ffffff}
+  @media (prefers-color-scheme: dark){:root{--bg:#121417;--ink:#e8e6e1;--muted:#a3a8b0;--line:#2a2e34;--accent:#3fc28f;--warn:#e5675a;--card:#191c20}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Inter","Segoe UI",system-ui,sans-serif}
+  main{max-width:980px;margin:0 auto;padding:40px 16px 80px}
+  .kicker{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:600}
+  h1{font-size:clamp(1.7rem,4vw,2.5rem);line-height:1.15;margin:8px 0 14px}
+  h2{font-size:1.35rem;margin:48px 0 12px;padding-top:8px;border-top:1px solid var(--line)}
+  p.lead{font-size:1.1rem;color:var(--muted);max-width:760px}
+  video,img{width:100%;border-radius:8px;border:1px solid var(--line);background:#000}
+  .cap{font-size:.88rem;color:var(--muted);margin-top:6px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin:22px 0}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+  .num{font-size:1.9rem;font-weight:700;color:var(--accent);line-height:1.1}
+  .card .lbl{font-size:.92rem;color:var(--muted)}
+  table{width:100%;border-collapse:collapse;font-size:.93rem;margin:10px 0 4px}
+  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-weight:600;color:var(--muted)}
+  td.b{font-weight:700}
+  .tbl{overflow-x:auto}
+  .note{border-left:3px solid var(--accent);padding:8px 14px;background:var(--card);border-radius:0 8px 8px 0;font-size:.95rem}
+  .warn{border-left-color:var(--warn)}
+  .btns a{display:inline-block;margin:6px 8px 0 0;padding:9px 14px;border-radius:8px;border:1px solid var(--line);color:var(--ink);text-decoration:none;font-weight:600;background:var(--card)}
+  .btns a.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  ul{padding-left:20px}
+  footer{margin-top:56px;font-size:.85rem;color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+  <div class="kicker">Mapping &amp; Localization · Humanoid · Construction sites</div>
+  <h1>Does the humanoid know where it is, and what is around it?</h1>
+  <p class="lead">A Unitree G1 walks simulated construction and energy sites with a head-mounted FMCW LiDAR (with per-point
+  Doppler), an IMU and its joint encoders. This project measures how localization errors become map errors and how map
+  errors make the robot stop or fall, then fixes that chain end to end.</p>
+
+  <div class="btns">
+    <a class="primary" href="https://github.com/enginksz/humanoid-g1-site-localization">Code on GitHub</a>
+    <a href="figures/map_nav_demo.mp4">Full demo video</a>
+  </div>
+
+  <div style="margin-top:26px">
+    <video src="figures/highlight.mp4" autoplay muted loop playsinline poster="figures/elevmap_dynamic_stack.png"></video>
+    <div class="cap">Left: chase camera. Right: what the robot's own navigation stack sees (its LiDAR map, Doppler-tracked
+    people, sampled and selected trajectories). The previous reactive method is trapped in a U-shaped obstacle; this work
+    completes the mission. Simulation, played at 2×.</div>
+  </div>
+
+  <div class="grid">
+    <div class="card"><div class="num">0/3 → 3/3</div><div class="lbl">open-site missions completed in closed loop: geometry-only odometry vs. Doppler + legs (robot on its own estimate and its own map)</div></div>
+    <div class="card"><div class="num">0.24 → 0.98</div><div class="lbl">obstacle-map F1 on a busy site: classic LiDAR stack vs. this work (1.0 = perfect)</div></div>
+    <div class="card"><div class="num">0.69 → 0.033 m</div><div class="lbl">localization error with workers and machines around (FAST-LIO2 vs. Doppler + legs)</div></div>
+  </div>
+
+  <h2>1 · Localization</h2>
+  <p>Six estimators on nine scenes, three seeds each. Geometry-only LiDAR odometry is excellent where there is structure
+  and fails where a site is open, repetitive or full of moving machines. Adding Doppler velocity and leg kinematics closes
+  those gaps; a test that compares the leg velocity with the Doppler velocity catches feet slipping on loose sheets.</p>
+  <div class="tbl"><table>
+    <tr><th>ATE [m]</th><th>building floor</th><th>workers &amp; machines</th><th>long corridor</th><th>empty roof</th><th>open site</th></tr>
+    <tr><td>FAST-LIO2</td><td>0.030</td><td>0.694</td><td>0.298</td><td>5.86</td><td>0.660</td></tr>
+    <tr><td>FMCW-LIO with Doppler</td><td>0.030</td><td>0.035</td><td>0.147</td><td>3.25</td><td>0.039</td></tr>
+    <tr><td class="b">+ legs + Doppler slip gate</td><td class="b">0.027</td><td class="b">0.033</td><td class="b">0.066</td><td class="b">0.72</td><td class="b">0.031</td></tr>
+  </table></div>
+  <div class="note">Root cause found for the 6–8 m drift on the open site: a humanoid is never stationary. A 0.4 s "standing still"
+  IMU initialization while it steps in place gives a 1.5° gravity error, i.e. ½·0.25 m/s²·(8 s)² ≈ 8 m.</div>
+
+  <h2>2 · Mapping for safe motion</h2>
+  <p>The robot builds its obstacle map from its own LiDAR and its own pose estimate. On a busy site two things ruin that map:
+  pose error (shifted, doubled structure) and moving objects (every worker and truck leaves a "ghost" wall).</p>
+  <img src="figures/elevmap_dynamic_stack.png" alt="map comparison">
+  <div class="cap">Dark: obstacle within 0.3 m of the truth. Red: ghost obstacle. Blue: missed obstacle.</div>
+  <ul>
+    <li><b>Doppler removes moving objects in the same scan</b> (point precision 0.93–0.95, recall 0.83–0.88), without touching static scenes.</li>
+    <li>Doppler only sees radial motion, so a person crossing the beam is invisible to it. The online map therefore combines
+    Doppler, guarded free-space clearing and a 0.35 s "recent observations" layer: <b>removing people from the map never
+    removes them from collision checking.</b></li>
+    <li>The evaluation itself was audited: the first reference map was wrong (vehicles driven backwards in old recordings),
+    found because a 1.3 m/s Doppler point sat "behind" a truck. Labels were fixed before any number was reported.</li>
+  </ul>
+
+  <h2>3 · Navigation</h2>
+  <p>Global: a Dijkstra navigation function (no local minima). Local: MPPI on the walking policy's own command interface
+  (forward speed, turn rate), with tracked people predicted over a 2.5 s horizon. 35–40 ms per step in Python.</p>
+  <img src="figures/nav_bench_traj.png" alt="navigation benchmark trajectories">
+  <div class="tbl"><table>
+    <tr><th>5 seeds, U-trap, 1 m gap, people</th><th>success</th><th>robot-caused person contacts</th></tr>
+    <tr><td>previous: reactive steering on a ground-truth costmap</td><td>1 / 5</td><td>0</td></tr>
+    <tr><td>own LiDAR map + MPPI, raycast clearing (classic)</td><td>5 / 5</td><td>4 (closest 0.12 m)</td></tr>
+    <tr><td class="b">own LiDAR map + MPPI, Doppler + guarded raycast</td><td class="b">5 / 5</td><td class="b">0 (closest 0.52 m)</td></tr>
+  </table></div>
+
+  <h2>4 · End to end</h2>
+  <p>In closed loop the robot walks on its own pose estimate and builds its own map with it. On the feature-rich building
+  floor both configurations complete 5 of 5. On the open site, geometry-only odometry completed <b>0 of 3</b> runs (two
+  stopped for good, one fell): the start-up gravity error becomes a 2–3 m pose error, and the map built with that pose
+  has shifted obstacles and phantom walls. With Doppler and leg kinematics the pose error stays at 0.2 m and the robot
+  completed <b>3 of 3</b>, without falls.</p>
+  <img src="figures/outdoor_phantom_wall.png" alt="phantom wall">
+  <div class="cap">Classic LiDAR odometry on the open site: the start-up gravity error lifts the ground 10–12 m ahead into
+  the robot's body height band, so its own map shows walls that are not there.</div>
+
+  <h2>Honest scope</h2>
+  <div class="note warn">
+    <ul>
+      <li>Everything is simulation (MuJoCo). The walking policy is Unitree's pretrained policy and was not trained here.</li>
+      <li>The FMCW LiDAR model is geometric (true radial velocity + noise); real sensors are noisier.</li>
+      <li>The navigator commands body velocities; footstep planning is out of scope. Simulated people never yield.</li>
+      <li>Code was developed with an AI coding assistant (Claude); design, experiments and analysis were directed by the author.</li>
+    </ul>
+  </div>
+
+  <footer>Simulation study · MuJoCo · Unitree G1 · FMCW-LIO · FAST-LIO2 · GTSAM · MPPI.
+  Full details, every parameter and every bug found along the way are in the technical report.</footer>
+</main>
+</body>
+</html>

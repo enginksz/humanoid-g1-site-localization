@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+data/
+results/
+third_party/
+build/
+*.bin
+*.npz
+*.pt
+*.pth

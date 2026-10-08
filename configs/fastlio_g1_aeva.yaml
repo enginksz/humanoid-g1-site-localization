@@ -1,0 +1,22 @@
+# FAST-LIO2 (hku-mars/FAST_LIO) settings for the simulated G1 + head FMCW LiDAR.
+# Matched to configs/fmcw_g1_aeva.yaml where the two have a common knob
+# (voxel sizes, point decimation, iterations, IMU noise, fixed extrinsics).
+common:
+    time_offset_lidar_to_imu: 0.0
+preprocess:
+    blind: 0.5
+point_filter_num: 2
+max_iteration: 3
+filter_size_surf: 0.3
+filter_size_map: 0.3
+cube_side_length: 1000
+mapping:
+    acc_cov: 0.1
+    gyr_cov: 0.1
+    b_acc_cov: 0.0001
+    b_gyr_cov: 0.0001
+    fov_degree: 120
+    det_range: 100.0
+    extrinsic_est_en: false
+    extrinsic_T: [ 0.0, 0.0, 0.0 ]   # overridden from meta.json
+    extrinsic_R: [ 1, 0, 0, 0, 1, 0, 0, 0, 1 ]

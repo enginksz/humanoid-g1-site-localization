@@ -1,0 +1,59 @@
+--- a/include/system/fmcw_lio.hpp
++++ b/include/system/fmcw_lio.hpp
+@@ -65,6 +65,22 @@
+ // fmcw_lio
+ namespace fmcw_lio {
+ 
++// Leg-odometry body velocity sample (IMU frame), produced by tools/legodo.py
++struct LegVel {
++    double t;
++    Eigen::Vector3d v_b;
++    double sigma;
++    double n_contact;
++};
++
++struct LegParams {
++    bool enabled{false};
++    double window{0.05};          // s before scan end to average stance samples
++    double chi2_gate{11.34};      // 99% for 3 dof
++    bool gate_with_doppler{true}; // compare against Doppler ego-velocity (slip check)
++    double sigma_floor{0.02};     // m/s, accounts for correlated stance error
++};
++
+ // FMCWLIO
+ class FMCWLIO {
+ public:
+@@ -83,6 +99,18 @@
+     // save map
+     void dumpMap() { bithub_ptr_->dumpMap(); }
+ 
++    // leg odometry fusion (standalone port extension)
++    void setLegVelocities(std::vector<LegVel> legs, const LegParams& params) {
++        legs_ = std::move(legs);
++        leg_params_ = params;
++    }
++    void setLegLog(std::ofstream* log) { leg_log_ = log; }
++    void addLegVelocity(const LegVel& v) { legs_.push_back(v); }
++    void enableLeg(const LegParams& params) { leg_params_ = params; }
++
++    // offline runner access (standalone port)
++    [[nodiscard]] std::shared_ptr<BitHub> bithubForOffline() const noexcept { return bithub_ptr_; }
++
+     // get system state
+     [[nodiscard]] std::shared_ptr<StateBase> getState() const noexcept { return state_system_ptr_; }
+ 
+@@ -214,6 +242,14 @@
+ 
+     // correspondence number threshold for mapping when using 4D Doppler LiDAR
+     const std::size_t correspond_num_thresh_mapping_4d_;
++
++    // leg odometry fusion
++    void updateByLeg(const std::shared_ptr<MeasPackLI>& meas_ptr, bool doppler_ok,
++                     const Eigen::Vector3d& v_dop_l, const Eigen::Matrix3d& R_dop);
++    std::vector<LegVel> legs_;
++    LegParams leg_params_;
++    std::size_t leg_cursor_{0};
++    std::ofstream* leg_log_{nullptr};
+ };
+ 
+ } // namespace fmcw_lio

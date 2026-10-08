@@ -1,0 +1,102 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      Enabled: true
+      Cell Size: 1
+      Plane Cell Count: 60
+      Color: 160; 160; 164
+      Alpha: 0.3
+      Reference Frame: <Fixed Frame>
+    - Class: rviz_default_plugins/PointCloud2
+      Name: Prior map
+      Enabled: true
+      Topic:
+        Value: /prior_map
+        Durability Policy: Transient Local
+        Reliability Policy: Reliable
+        Depth: 1
+      Style: Points
+      Size (Pixels): 2
+      Color Transformer: AxisColor
+      Axis: Z
+      Alpha: 0.35
+    - Class: rviz_default_plugins/PointCloud2
+      Name: LiDAR (Doppler)
+      Enabled: true
+      Topic:
+        Value: /lidar/points
+        Reliability Policy: Reliable
+        Depth: 5
+      Style: Points
+      Size (Pixels): 3
+      Color Transformer: Intensity
+      Channel Name: doppler
+      Use rainbow: true
+      Autocompute Intensity Bounds: false
+      Min Intensity: -1.5
+      Max Intensity: 1.5
+      Decay Time: 0
+    - Class: rviz_default_plugins/Path
+      Name: Estimate
+      Enabled: true
+      Topic:
+        Value: /path/estimate
+      Color: 242; 115; 26
+      Line Style: Billboards
+      Line Width: 0.08
+    - Class: rviz_default_plugins/Path
+      Name: Ground truth
+      Enabled: true
+      Topic:
+        Value: /path/ground_truth
+      Color: 26; 191; 77
+      Line Style: Billboards
+      Line Width: 0.08
+    - Class: rviz_default_plugins/MarkerArray
+      Name: Obstacles (GT costmap)
+      Enabled: true
+      Topic:
+        Value: /obstacles
+        Reliability Policy: Reliable
+        Depth: 5
+    - Class: rviz_default_plugins/Map
+      Name: Local costmap
+      Enabled: true
+      Topic:
+        Value: /local_costmap
+        Reliability Policy: Reliable
+        Depth: 5
+      Alpha: 0.55
+      Color Scheme: costmap
+    - Class: rviz_default_plugins/TF
+      Name: TF
+      Enabled: true
+      Show Names: true
+      Marker Scale: 1.5
+  Global Options:
+    Fixed Frame: map
+    Background Color: 48; 48; 48
+    Frame Rate: 30
+  Tools:
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 45
+      Focal Point:
+        X: 14
+        Y: 2
+        Z: 0
+      Pitch: 0.9
+      Yaw: 3.6
+      Target Frame: <Fixed Frame>
+    Saved: ~
+Window Geometry:
+  Width: 1400
+  Height: 900

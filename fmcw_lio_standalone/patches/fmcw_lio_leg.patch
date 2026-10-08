@@ -1,0 +1,108 @@
+--- a/src/system/fmcw_lio.cpp
++++ b/src/fmcw_lio_leg.cpp
+@@ -169,6 +169,11 @@
+         return;
+     }
+ 
++    // [standalone port] Doppler result kept for the leg slip gate
++    bool doppler_ok = false;
++    Eigen::Vector3d v_dop_l = Eigen::Vector3d::Zero();
++    Eigen::Matrix3d R_dop = Eigen::Matrix3d::Identity();
++
+     // estimate velocity in LiDAR frame
+     bool is_vel_update_first_scan_lio = !(config_ptr_->init_mapping && is_first_scan_lio_);
+     if (config_ptr_->use_doppler &&
+@@ -190,6 +195,9 @@
+             (std::abs(velocimeter_ptr_->getTime() - (state_system_ptr_->getTime() - meas_ptr->scan_beg_time)) <= vel_update_time_diff_thresh_)) {
+             Eigen::Vector3d v_wl_l_est = velocimeter_ptr_->getVelocityEstimated();
+             Eigen::Matrix3d R_v_est = velocimeter_ptr_->getCovariance();
++            doppler_ok = true;
++            v_dop_l = v_wl_l_est;
++            R_dop = R_v_est;
+ 
+             filter_ptr_->updateByVelocity(state_system_ptr_,
+                                           v_wl_l_est, R_v_est);
+@@ -212,6 +220,11 @@
+         }
+     }
+ 
++    // [standalone port] leg-odometry velocity update with Doppler slip gate
++    if (leg_params_.enabled) {
++        updateByLeg(meas_ptr, doppler_ok, v_dop_l, R_dop);
++    }
++
+     // initialize map
+     if (map_ptr_->isNeedInitializeMap()) {
+         map_ptr_->initializeMap(state_system_ptr_,
+@@ -243,6 +256,71 @@
+     time_processing_ = static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count()) * 1.0e-3;
+ }
+ 
++void FMCWLIO::updateByLeg(const std::shared_ptr<MeasPackLI>& meas_ptr, bool doppler_ok,
++                          const Eigen::Vector3d& v_dop_l, const Eigen::Matrix3d& R_dop) {
++    const double t_end = state_system_ptr_->getTime();
++    while (leg_cursor_ < legs_.size() && legs_[leg_cursor_].t < t_end - leg_params_.window) {
++        ++leg_cursor_;
++    }
++    Eigen::Vector3d v_sum = Eigen::Vector3d::Zero();
++    double w_sum = 0.0, sig2_min = 1e9;
++    std::size_t n = 0;
++    for (std::size_t i = leg_cursor_; i < legs_.size() && legs_[i].t <= t_end + 1e-6; ++i) {
++        if (legs_[i].n_contact <= 0 || legs_[i].sigma > 1.0) continue;
++        const double w = 1.0 / (legs_[i].sigma * legs_[i].sigma);
++        v_sum += w * legs_[i].v_b;
++        w_sum += w;
++        sig2_min = std::min(sig2_min, legs_[i].sigma * legs_[i].sigma);
++        ++n;
++    }
++    if (n == 0) {
++        if (leg_log_) *leg_log_ << t_end << ",0,nan,nan,nan,nan,0,0\n";
++        return;
++    }
++    const Eigen::Vector3d v_b = v_sum / w_sum;
++    // stance errors are time-correlated: do not shrink below a floor
++    const double sig2 = std::max(sig2_min / std::min<double>(n, 4.0),
++                                 leg_params_.sigma_floor * leg_params_.sigma_floor);
++
++    const auto imu_scan_end = filter_ptr_->getIMUScanEnd();
++    const Eigen::Vector3d omg = imu_scan_end.first - state_system_ptr_->getGyroscopeBias();
++    const Eigen::Matrix3d& R_bl = config_ptr_->R_bl;
++    const Eigen::Vector3d& p_bl = config_ptr_->p_bl_b;
++    const Eigen::Vector3d v_l_leg = R_bl.transpose() * (v_b + omg.cross(p_bl));
++    const Eigen::Matrix3d R_leg = Eigen::Matrix3d::Identity() * sig2;
++
++    // gate: against Doppler ego-velocity when available (independent sensor),
++    // otherwise against the filter prediction
++    double m2;
++    int gate_src;
++    if (leg_params_.gate_with_doppler && doppler_ok) {
++        const Eigen::Vector3d d = v_l_leg - v_dop_l;
++        m2 = d.dot((R_leg + R_dop).ldlt().solve(d));
++        gate_src = 1;
++    } else {
++        const auto R_wb = state_system_ptr_->getRotation();
++        const Eigen::Vector3d v_wb_b = R_wb.transpose() * state_system_ptr_->getVelocity();
++        const Eigen::Vector3d v_pred = R_bl.transpose() * (v_wb_b + omg.cross(p_bl));
++        const auto dim = static_cast<Eigen::Index>(state_system_ptr_->getDim());
++        Eigen::MatrixXd H = Eigen::MatrixXd::Zero(3, dim);
++        H.block(0, 0, 3, 3) = R_bl.transpose() * SO3::skewVec(v_wb_b);
++        H.block(0, 3, 3, 3) = R_bl.transpose() * R_wb.transpose();
++        H.block(0, 9, 3, 3) = R_bl.transpose() * SO3::skewVec(p_bl);
++        const Eigen::Matrix3d S = H * filter_ptr_->getCovariance() * H.transpose() + R_leg;
++        const Eigen::Vector3d d = v_l_leg - v_pred;
++        m2 = d.dot(S.ldlt().solve(d));
++        gate_src = 2;
++    }
++    const bool accept = m2 < leg_params_.chi2_gate;
++    if (accept) {
++        filter_ptr_->updateByVelocity(state_system_ptr_, v_l_leg, R_leg);
++    }
++    if (leg_log_) {
++        *leg_log_ << t_end << "," << n << "," << m2 << "," << v_b.x() << "," << v_b.y() << "," << v_b.z()
++                  << "," << (accept ? 1 : 0) << "," << gate_src << "\n";
++    }
++}
++
+ void FMCWLIO::dialForwardMeasLI(const std::shared_ptr<MeasPackLI>& meas_ptr) const {
+     // LiDAR scan
+     auto it_first_point_keep = std::lower_bound(meas_ptr->scan_ptr->points.begin(), meas_ptr->scan_ptr->points.end(),
